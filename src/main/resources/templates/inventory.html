@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory - Wholesale Distribution Management</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" th:href="@{/css/styles.css}">
+</head>
+<body>
+    <div class="layout">
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <h2><i class="fa-solid fa-cloud-bolt"></i> <span>WDM System</span></h2>
+            </div>
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="/dashboard">
+                        <i class="fa-solid fa-chart-pie"></i>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/customers-page">
+                        <i class="fa-solid fa-users"></i>
+                        <span>Customers</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/products-page">
+                        <i class="fa-solid fa-box-open"></i>
+                        <span>Products</span>
+                    </a>
+                </li>
+                <li class="nav-item active">
+                    <a href="/inventory-page">
+                        <i class="fa-solid fa-warehouse"></i>
+                        <span>Inventory</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/orders-page">
+                        <i class="fa-solid fa-receipt"></i>
+                        <span>Orders</span>
+                    </a>
+                </li>
+            </ul>
+            <div class="sidebar-footer">
+                <div id="userInfo" class="user-info"></div>
+                <button onclick="logout()" class="btn btn-danger btn-small btn-block"><i class="fa-solid fa-right-from-bracket"></i> <span>Logout</span></button>
+            </div>
+        </nav>
+        
+        <main class="main-content">
+            <header class="page-header">
+                <div>
+                    <h1><i class="fa-solid fa-warehouse" style="color: var(--accent-indigo); margin-right: 8px;"></i> Inventory Management</h1>
+                    <p>Track warehouse product counts, locations, and thresholds</p>
+                </div>
+                <div class="header-actions">
+                    <select id="warehouseFilter" class="filter-select">
+                        <option value="">All Warehouses</option>
+                    </select>
+                    <button onclick="showLowStock()" class="btn btn-warning"><i class="fa-solid fa-triangle-exclamation"></i> Low Stock Items</button>
+                </div>
+            </header>
+            
+            <div class="inventory-stats">
+                <div class="stat-card small">
+                    <div>
+                        <h4>Total Items</h4>
+                        <p id="totalItems">-</p>
+                    </div>
+                    <i class="fa-solid fa-cubes stat-icon"></i>
+                </div>
+                <div class="stat-card small warning">
+                    <div>
+                        <h4>Low Stock</h4>
+                        <p id="lowStockCount">-</p>
+                    </div>
+                    <i class="fa-solid fa-triangle-exclamation stat-icon"></i>
+                </div>
+                <div class="stat-card small danger">
+                    <div>
+                        <h4>Out of Stock</h4>
+                        <p id="outOfStockCount">-</p>
+                    </div>
+                    <i class="fa-solid fa-circle-exclamation stat-icon"></i>
+                </div>
+            </div>
+            
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Product SKU</th>
+                            <th>Product Name</th>
+                            <th>Quantity</th>
+                            <th>Min Qty</th>
+                            <th>Warehouse</th>
+                            <th>Shelf</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="inventoryTable">
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="pagination" id="pagination"></div>
+        </main>
+    </div>
+    
+    <!-- Restock Modal -->
+    <div id="restockModal" class="modal">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h2>Restock Product</h2>
+                <button onclick="closeModal()" class="close-btn">&times;</button>
+            </div>
+            <form id="restockForm">
+                <input type="hidden" id="restockProductId">
+                <p id="restockProductName" class="product-name"></p>
+                <div class="form-group">
+                    <label for="restockQuantity"><i class="fa-solid fa-arrow-up-9-1" style="color: var(--accent-primary); margin-right: 6px;"></i> Quantity to Add *</label>
+                    <input type="number" id="restockQuantity" min="1" required placeholder="Enter quantity">
+                </div>
+                <div class="form-group">
+                    <label for="restockWarehouse"><i class="fa-solid fa-map-pin" style="color: var(--accent-primary); margin-right: 6px;"></i> Warehouse Location</label>
+                    <input type="text" id="restockWarehouse" placeholder="e.g. Aisle 3, Bin 4">
+                </div>
+                <div class="form-actions">
+                    <button type="button" onclick="closeModal()" class="btn btn-secondary"><i class="fa-solid fa-xmark"></i> Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="fa-solid fa-truck-ramp-box"></i> Restock</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script th:src="@{/js/app.js}"></script>
+    <script>
+        let currentPage = 0;
+        const pageSize = 10;
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            checkAuth();
+            loadInventory();
+            loadWarehouses();
+            loadInventoryStats();
+            
+            document.getElementById('warehouseFilter').addEventListener('change', filterByWarehouse);
+            document.getElementById('restockForm').addEventListener('submit', restockProduct);
+        });
+        
+        async function loadInventory(page = 0) {
+            currentPage = page;
+            try {
+                const response = await apiRequest(`/inventory?page=${page}&size=${pageSize}`);
+                const data = await response.json();
+                renderInventory(data);
+            } catch (error) {
+                console.error('Error loading inventory:', error);
+            }
+        }
+        
+        async function loadWarehouses() {
+            try {
+                const response = await apiRequest('/inventory/warehouses');
+                const warehouses = await response.json();
+                const select = document.getElementById('warehouseFilter');
+                warehouses.forEach(wh => {
+                    select.innerHTML += `<option value="${wh}">${wh}</option>`;
+                });
+            } catch (error) {
+                console.error('Error loading warehouses:', error);
+            }
+        }
+        
+        async function loadInventoryStats() {
+            try {
+                const [totalResponse, lowStockResponse, outOfStockResponse] = await Promise.all([
+                    apiRequest('/inventory/total-count'),
+                    apiRequest('/inventory/low-stock'),
+                    apiRequest('/inventory/out-of-stock')
+                ]);
+                
+                const total = await totalResponse.json();
+                const lowStock = await lowStockResponse.json();
+                const outOfStock = await outOfStockResponse.json();
+                
+                document.getElementById('totalItems').textContent = total;
+                document.getElementById('lowStockCount').textContent = lowStock.length;
+                document.getElementById('outOfStockCount').textContent = outOfStock.length;
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+        
+        async function filterByWarehouse() {
+            const warehouse = document.getElementById('warehouseFilter').value;
+            if (!warehouse) {
+                loadInventory();
+                return;
+            }
+            try {
+                const response = await apiRequest(`/inventory/warehouse/${encodeURIComponent(warehouse)}?page=0&size=${pageSize}`);
+                const data = await response.json();
+                renderInventory(data);
+            } catch (error) {
+                console.error('Error filtering inventory:', error);
+            }
+        }
+        
+        async function showLowStock() {
+            try {
+                const response = await apiRequest(`/inventory/low-stock/paged?page=0&size=${pageSize}`);
+                const data = await response.json();
+                renderInventory(data);
+            } catch (error) {
+                console.error('Error loading low stock items:', error);
+            }
+        }
+        
+        function renderInventory(data) {
+            const tbody = document.getElementById('inventoryTable');
+            tbody.innerHTML = data.content.map(i => {
+                let statusClass = 'badge-success';
+                let statusText = 'In Stock';
+                if (i.quantity === 0) {
+                    statusClass = 'badge-danger';
+                    statusText = 'Out of Stock';
+                } else if (i.lowStock) {
+                    statusClass = 'badge-warning';
+                    statusText = 'Low Stock';
+                }
+                
+                // Escape single quotes for JS onClick safety
+                const productNameEscaped = i.productName.replace(/'/g, "\\'");
+                
+                return `
+                <tr>
+                    <td><strong>${i.productSku}</strong></td>
+                    <td>${i.productName}</td>
+                    <td><strong>${i.quantity}</strong></td>
+                    <td>${i.minQuantity}</td>
+                    <td>${i.warehouseLocation || '-'}</td>
+                    <td>${i.shelfNumber || '-'}</td>
+                    <td><span class="badge ${statusClass}">${statusText}</span></td>
+                    <td>
+                        <button onclick="showRestockModal(${i.productId}, '${productNameEscaped}')" class="btn btn-small btn-primary"><i class="fa-solid fa-truck-ramp-box"></i> Restock</button>
+                    </td>
+                </tr>
+            `}).join('');
+            
+            renderPagination(data, 'pagination', loadInventory);
+        }
+        
+        function showRestockModal(productId, productName) {
+            document.getElementById('restockProductId').value = productId;
+            document.getElementById('restockProductName').textContent = productName;
+            document.getElementById('restockQuantity').value = '';
+            document.getElementById('restockWarehouse').value = '';
+            document.getElementById('restockModal').style.display = 'flex';
+        }
+        
+        async function restockProduct(e) {
+            e.preventDefault();
+            const productId = document.getElementById('restockProductId').value;
+            const quantity = document.getElementById('restockQuantity').value;
+            const warehouse = document.getElementById('restockWarehouse').value;
+            
+            let url = `/inventory/product/${productId}/restock?quantity=${quantity}`;
+            if (warehouse) {
+                url += `&warehouseLocation=${encodeURIComponent(warehouse)}`;
+            }
+            
+            try {
+                await apiRequest(url, 'PATCH');
+                closeModal();
+                loadInventory(currentPage);
+                loadInventoryStats();
+            } catch (error) {
+                alert('Error restocking product');
+            }
+        }
+        
+        function closeModal() {
+            document.getElementById('restockModal').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Wholesale Distribution Management</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" th:href="@{/css/styles.css}">
+</head>
+<body class="auth-body">
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <h1>Wholesale Distribution</h1>
+                <p>Business Management System</p>
+            </div>
+            
+            <form id="loginForm" class="auth-form">
+                <div id="errorMessage" class="error-message" style="display: none;"></div>
+                
+                <div class="form-group">
+                    <label for="username"><i class="fa-solid fa-user" style="color: var(--accent-primary); margin-right: 6px;"></i> Username</label>
+                    <input type="text" id="username" name="username" required placeholder="Enter your username">
+                </div>
+                
+                <div class="form-group">
+                    <label for="password"><i class="fa-solid fa-key" style="color: var(--accent-primary); margin-right: 6px;"></i> Password</label>
+                    <input type="password" id="password" name="password" required placeholder="Enter your password">
+                </div>
+                
+                <button type="submit" class="btn btn-primary btn-block"><i class="fa-solid fa-right-to-bracket"></i> Login</button>
+            </form>
+            
+            <div class="auth-footer">
+                <p>Don't have an account? <a href="/register">Register here</a></p>
+            </div>
+            
+            <div class="demo-credentials">
+                <h4><i class="fa-solid fa-shield-halved" style="color: var(--accent-warning); margin-right: 6px;"></i> Demo Credentials</h4>
+                <p><strong>Admin:</strong> admin / admin123</p>
+                <p><strong>Manager:</strong> manager / admin123</p>
+                <p><strong>Employee:</strong> employee / admin123</p>
+            </div>
+        </div>
+    </div>
+    
+    <script th:src="@{/js/auth.js}"></script>
+</body>
+</html>

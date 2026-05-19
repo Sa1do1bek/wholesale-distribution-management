@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Orders - Wholesale Distribution Management</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" th:href="@{/css/styles.css}">
+</head>
+<body>
+    <div class="layout">
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <h2><i class="fa-solid fa-cloud-bolt"></i> <span>WDM System</span></h2>
+            </div>
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="/dashboard">
+                        <i class="fa-solid fa-chart-pie"></i>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/customers-page">
+                        <i class="fa-solid fa-users"></i>
+                        <span>Customers</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/products-page">
+                        <i class="fa-solid fa-box-open"></i>
+                        <span>Products</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/inventory-page">
+                        <i class="fa-solid fa-warehouse"></i>
+                        <span>Inventory</span>
+                    </a>
+                </li>
+                <li class="nav-item active">
+                    <a href="/orders-page">
+                        <i class="fa-solid fa-receipt"></i>
+                        <span>Orders</span>
+                    </a>
+                </li>
+            </ul>
+            <div class="sidebar-footer">
+                <div id="userInfo" class="user-info"></div>
+                <button onclick="logout()" class="btn btn-danger btn-small btn-block"><i class="fa-solid fa-right-from-bracket"></i> <span>Logout</span></button>
+            </div>
+        </nav>
+        
+        <main class="main-content">
+            <header class="page-header">
+                <div>
+                    <h1><i class="fa-solid fa-receipt" style="color: var(--accent-indigo); margin-right: 8px;"></i> Order Management</h1>
+                    <p>Track wholesale orders, adjust fulfillment status, and create new invoices</p>
+                </div>
+                <div class="header-actions">
+                    <div style="position: relative;">
+                        <input type="text" id="searchInput" placeholder="Search orders..." class="search-input" style="padding-left: 36px;">
+                        <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 14px; top: 13px; color: var(--text-muted);"></i>
+                    </div>
+                    <select id="statusFilter" class="filter-select">
+                        <option value="">All Statuses</option>
+                        <option value="PENDING">Pending</option>
+                        <option value="PROCESSING">Processing</option>
+                        <option value="SHIPPED">Shipped</option>
+                        <option value="DELIVERED">Delivered</option>
+                        <option value="CANCELLED">Cancelled</option>
+                    </select>
+                    <button onclick="showCreateModal()" class="btn btn-primary"><i class="fa-solid fa-cart-plus"></i> Create Order</button>
+                </div>
+            </header>
+            
+            <div class="table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Order #</th>
+                            <th>Customer</th>
+                            <th>Date</th>
+                            <th>Items</th>
+                            <th>Total</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ordersTable">
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="pagination" id="pagination"></div>
+        </main>
+    </div>
+    
+    <!-- Create Order Modal -->
+    <div id="orderModal" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2>Create Wholesale Order</h2>
+                <button onclick="closeModal()" class="close-btn">&times;</button>
+            </div>
+            <form id="orderForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="customerId"><i class="fa-solid fa-user-tie" style="color: var(--accent-primary); margin-right: 6px;"></i> Customer *</label>
+                        <select id="customerId" required>
+                            <option value="">Select Customer</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="shippingAddress"><i class="fa-solid fa-truck" style="color: var(--accent-primary); margin-right: 6px;"></i> Shipping Address</label>
+                        <input type="text" id="shippingAddress" placeholder="Enter delivery address">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="notes"><i class="fa-solid fa-comment" style="color: var(--accent-primary); margin-right: 6px;"></i> Notes</label>
+                    <textarea id="notes" rows="2" placeholder="e.g. Delivery instructions, special requests..."></textarea>
+                </div>
+                
+                <div class="order-items-section">
+                    <h3><i class="fa-solid fa-basket-shopping" style="color: var(--accent-indigo); margin-right: 6px;"></i> Order Items</h3>
+                    <div id="orderItems">
+                        <div class="order-item-row">
+                            <select class="product-select" required>
+                                <option value="">Select Product</option>
+                            </select>
+                            <input type="number" class="quantity-input" placeholder="Qty" min="1" value="1" required>
+                            <span class="item-price">$0.00</span>
+                            <button type="button" class="btn btn-small btn-danger" onclick="removeItemRow(this)"><i class="fa-solid fa-trash-can"></i> Remove</button>
+                        </div>
+                    </div>
+                    <button type="button" onclick="addItemRow()" class="btn btn-secondary btn-small" style="margin-top: 10px;"><i class="fa-solid fa-plus"></i> Add Item</button>
+                </div>
+                
+                <div class="order-total">
+                    <strong>Total: <span id="orderTotal">$0.00</span></strong>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" onclick="closeModal()" class="btn btn-secondary"><i class="fa-solid fa-xmark"></i> Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Create Order</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Order Details Modal -->
+    <div id="detailsModal" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2>Order Invoice Details</h2>
+                <button onclick="closeDetailsModal()" class="close-btn">&times;</button>
+            </div>
+            <div id="orderDetails" style="padding: 28px;"></div>
+        </div>
+    </div>
+    
+    <script th:src="@{/js/app.js}"></script>
+    <script>
+        let currentPage = 0;
+        const pageSize = 10;
+        let products = [];
+        let customers = [];
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            checkAuth();
+            loadOrders();
+            loadCustomers();
+            loadProducts();
+            
+            document.getElementById('searchInput').addEventListener('input', debounce(searchOrders, 300));
+            document.getElementById('statusFilter').addEventListener('change', filterByStatus);
+            document.getElementById('orderForm').addEventListener('submit', createOrder);
+        });
+        
+        async function loadOrders(page = 0) {
+            currentPage = page;
+            try {
+                const response = await apiRequest(`/orders?page=${page}&size=${pageSize}`);
+                const data = await response.json();
+                renderOrders(data);
+            } catch (error) {
+                console.error('Error loading orders:', error);
+            }
+        }
+        
+        async function loadCustomers() {
+            try {
+                const response = await apiRequest('/customers/active?page=0&size=100');
+                const data = await response.json();
+                customers = data.content;
+                const select = document.getElementById('customerId');
+                customers.forEach(c => {
+                    select.innerHTML += `<option value="${c.id}">${c.fullName} (${c.companyName || 'N/A'})</option>`;
+                });
+            } catch (error) {
+                console.error('Error loading customers:', error);
+            }
+        }
+        
+        async function loadProducts() {
+            try {
+                const response = await apiRequest('/products/active?page=0&size=100');
+                const data = await response.json();
+                products = data.content;
+            } catch (error) {
+                console.error('Error loading products:', error);
+            }
+        }
+        
+        async function searchOrders() {
+            const search = document.getElementById('searchInput').value;
+            if (search.length < 2) {
+                loadOrders();
+                return;
+            }
+            try {
+                const response = await apiRequest(`/orders/search?q=${encodeURIComponent(search)}&page=0&size=${pageSize}`);
+                const data = await response.json();
+                renderOrders(data);
+            } catch (error) {
+                console.error('Error searching orders:', error);
+            }
+        }
+        
+        async function filterByStatus() {
+            const status = document.getElementById('statusFilter').value;
+            if (!status) {
+                loadOrders();
+                return;
+            }
+            try {
+                const response = await apiRequest(`/orders/status/${status}?page=0&size=${pageSize}`);
+                const data = await response.json();
+                renderOrders(data);
+            } catch (error) {
+                console.error('Error filtering orders:', error);
+            }
+        }
+        
+        function renderOrders(data) {
+            const tbody = document.getElementById('ordersTable');
+            tbody.innerHTML = data.content.map(o => {
+                const statusClass = getStatusClass(o.status);
+                return `
+                <tr>
+                    <td><strong>${o.orderNumber}</strong></td>
+                    <td>${o.customerName}</td>
+                    <td>${formatDate(o.orderDate)}</td>
+                    <td><strong>${o.items ? o.items.length : 0}</strong> items</td>
+                    <td><strong>${formatCurrency(o.totalAmount)}</strong></td>
+                    <td><span class="badge ${statusClass}">${o.status}</span></td>
+                    <td>
+                        <button onclick="viewOrder(${o.id})" class="btn btn-small btn-secondary"><i class="fa-solid fa-eye"></i> View</button>
+                        ${o.status !== 'DELIVERED' && o.status !== 'CANCELLED' ? 
+                            `<button onclick="updateStatus(${o.id}, '${o.status}')" class="btn btn-small btn-primary"><i class="fa-solid fa-circle-chevron-right"></i> Next Step</button>` : ''}
+                    </td>
+                </tr>
+            `}).join('');
+            
+            renderPagination(data, 'pagination', loadOrders);
+        }
+        
+        function getStatusClass(status) {
+            switch(status) {
+                case 'PENDING': return 'badge-warning';
+                case 'PROCESSING': return 'badge-info';
+                case 'SHIPPED': return 'badge-primary';
+                case 'DELIVERED': return 'badge-success';
+                case 'CANCELLED': return 'badge-danger';
+                default: return '';
+            }
+        }
+        
+        function showCreateModal() {
+            document.getElementById('orderForm').reset();
+            document.getElementById('orderItems').innerHTML = '';
+            addItemRow();
+            document.getElementById('orderModal').style.display = 'flex';
+        }
+        
+        function addItemRow() {
+            const container = document.getElementById('orderItems');
+            const row = document.createElement('div');
+            row.className = 'order-item-row';
+            row.innerHTML = `
+                <select class="product-select" required onchange="updateItemPrice(this)">
+                    <option value="">Select Product</option>
+                    ${products.map(p => `<option value="${p.id}" data-price="${p.price}">${p.name} (${p.sku}) - ${formatCurrency(p.price)}</option>`).join('')}
+                </select>
+                <input type="number" class="quantity-input" placeholder="Qty" min="1" value="1" required onchange="updateTotal()">
+                <span class="item-price">$0.00</span>
+                <button type="button" class="btn btn-small btn-danger" onclick="removeItemRow(this)"><i class="fa-solid fa-trash-can"></i> Remove</button>
+            `;
+            container.appendChild(row);
+        }
+        
+        function removeItemRow(btn) {
+            const container = document.getElementById('orderItems');
+            if (container.children.length > 1) {
+                btn.closest('.order-item-row').remove();
+                updateTotal();
+            }
+        }
+        
+        function updateItemPrice(select) {
+            const row = select.closest('.order-item-row');
+            const option = select.options[select.selectedIndex];
+            const price = parseFloat(option.dataset.price) || 0;
+            const qty = parseInt(row.querySelector('.quantity-input').value) || 1;
+            row.querySelector('.item-price').textContent = formatCurrency(price * qty);
+            updateTotal();
+        }
+        
+        function updateTotal() {
+            const rows = document.querySelectorAll('.order-item-row');
+            let total = 0;
+            rows.forEach(row => {
+                const select = row.querySelector('.product-select');
+                const option = select.options[select.selectedIndex];
+                const price = parseFloat(option?.dataset?.price) || 0;
+                const qty = parseInt(row.querySelector('.quantity-input').value) || 0;
+                total += price * qty;
+            });
+            document.getElementById('orderTotal').textContent = formatCurrency(total);
+        }
+        
+        async function createOrder(e) {
+            e.preventDefault();
+            
+            const items = [];
+            document.querySelectorAll('.order-item-row').forEach(row => {
+                const productId = row.querySelector('.product-select').value;
+                const quantity = parseInt(row.querySelector('.quantity-input').value);
+                if (productId && quantity > 0) {
+                    items.push({ productId: parseInt(productId), quantity });
+                }
+            });
+            
+            if (items.length === 0) {
+                alert('Please add at least one item');
+                return;
+            }
+            
+            const data = {
+                customerId: parseInt(document.getElementById('customerId').value),
+                shippingAddress: document.getElementById('shippingAddress').value,
+                notes: document.getElementById('notes').value,
+                items
+            };
+            
+            try {
+                await apiRequest('/orders', 'POST', data);
+                closeModal();
+                loadOrders();
+            } catch (error) {
+                alert('Error creating order');
+            }
+        }
+        
+        async function viewOrder(id) {
+            try {
+                const response = await apiRequest(`/orders/${id}`);
+                const order = await response.json();
+                
+                const itemsHtml = order.items.map(i => `
+                    <tr>
+                        <td><strong>${i.productSku}</strong></td>
+                        <td>${i.productName}</td>
+                        <td><strong>${i.quantity}</strong></td>
+                        <td>${formatCurrency(i.unitPrice)}</td>
+                        <td style="color: var(--accent-primary); font-weight: 600;">${formatCurrency(i.subtotal)}</td>
+                    </tr>
+                `).join('');
+                
+                document.getElementById('orderDetails').innerHTML = `
+                    <div class="order-info">
+                        <div class="info-row">
+                            <span><strong>Order Number:</strong> ${order.orderNumber}</span>
+                            <span><strong>Status:</strong> <span class="badge ${getStatusClass(order.status)}">${order.status}</span></span>
+                        </div>
+                        <div class="info-row">
+                            <span><strong>Customer:</strong> ${order.customerName}</span>
+                            <span><strong>Order Date:</strong> ${formatDate(order.orderDate)}</span>
+                        </div>
+                        <div class="info-row">
+                            <span><strong>Shipping Address:</strong> ${order.shippingAddress || '-'}</span>
+                        </div>
+                        ${order.notes ? `<div class="info-row"><strong>Notes:</strong> ${order.notes}</div>` : ''}
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>SKU</th>
+                                <th>Product</th>
+                                <th>Qty</th>
+                                <th>Unit Price</th>
+                                <th>Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>${itemsHtml}</tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="4" style="text-align:right"><strong>Total Invoice:</strong></td>
+                                <td style="color: var(--accent-success); font-weight: 800; font-size: 16px;"><strong>${formatCurrency(order.totalAmount)}</strong></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                `;
+                
+                document.getElementById('detailsModal').style.display = 'flex';
+            } catch (error) {
+                alert('Error loading order details');
+            }
+        }
+        
+        async function updateStatus(id, currentStatus) {
+            const nextStatus = getNextStatus(currentStatus);
+            if (!nextStatus) return;
+            
+            if (confirm(`Update order status to ${nextStatus}?`)) {
+                try {
+                    await apiRequest(`/orders/${id}/status?status=${nextStatus}`, 'PATCH');
+                    loadOrders(currentPage);
+                } catch (error) {
+                    alert('Error updating order status');
+                }
+            }
+        }
+        
+        function getNextStatus(current) {
+            switch(current) {
+                case 'PENDING': return 'PROCESSING';
+                case 'PROCESSING': return 'SHIPPED';
+                case 'SHIPPED': return 'DELIVERED';
+                default: return null;
+            }
+        }
+        
+        function closeModal() {
+            document.getElementById('orderModal').style.display = 'none';
+        }
+        
+        function closeDetailsModal() {
+            document.getElementById('detailsModal').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
