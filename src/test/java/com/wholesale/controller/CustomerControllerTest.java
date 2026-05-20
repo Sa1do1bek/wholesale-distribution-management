@@ -14,7 +14,6 @@ import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -46,18 +45,12 @@ class CustomerControllerTest {
         customerDTO = new CustomerDTO();
         customerDTO.setId(1L);
         customerDTO.setCompanyName("Test Company");
-        customerDTO.setContactName("John Doe");
+        customerDTO.setFullName("John Doe");
         customerDTO.setEmail("john@test.com");
         customerDTO.setPhone("123-456-7890");
         customerDTO.setAddress("123 Test St");
         customerDTO.setCity("Test City");
-        customerDTO.setState("TS");
-        customerDTO.setZipCode("12345");
         customerDTO.setCountry("USA");
-        customerDTO.setCreditLimit(new BigDecimal("10000.00"));
-        customerDTO.setPaymentTerms("NET30");
-        customerDTO.setActive(true);
-        customerDTO.setCreatedAt(LocalDateTime.now());
     }
 
     @Test
@@ -66,11 +59,13 @@ class CustomerControllerTest {
         PageResponse<CustomerDTO> pageResponse = new PageResponse<>(
                 List.of(customerDTO), 0, 10, 1, 1, true, true
         );
-        when(customerService.getAllCustomers(anyInt(), anyInt())).thenReturn(pageResponse);
+        when(customerService.getAllCustomers(anyInt(), anyInt(), anyString(), anyString())).thenReturn(pageResponse);
 
         mockMvc.perform(get("/api/customers")
                         .param("page", "0")
-                        .param("size", "10"))
+                        .param("size", "10")
+                        .param("sortBy", "id")
+                        .param("sortDir", "asc"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].companyName").value("Test Company"));
     }
@@ -122,12 +117,15 @@ class CustomerControllerTest {
     @Test
     @WithMockUser(roles = "SALES")
     void searchCustomers_ReturnsMatchingCustomers() throws Exception {
-        when(customerService.searchCustomers(anyString())).thenReturn((PageResponse<CustomerDTO>) List.of(customerDTO));
+        PageResponse<CustomerDTO> pageResponse = new PageResponse<>(
+                List.of(customerDTO), 0, 10, 1, 1, true, true
+        );
+        when(customerService.searchCustomers(anyString(), anyInt(), anyInt())).thenReturn(pageResponse);
 
         mockMvc.perform(get("/api/customers/search")
-                        .param("query", "Test"))
+                        .param("q", "Test"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].companyName").value("Test Company"));
+                .andExpect(jsonPath("$.content[0].companyName").value("Test Company"));
     }
 
     @Test

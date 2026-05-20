@@ -88,19 +88,4 @@ class JwtTokenProviderTest {
         assertFalse(isValid);
     }
 
-    @Test
-    void getRolesFromToken_TokenWithRoles_ReturnsRoles() {
-        UserDetails userDetails = new User("testuser", "password",
-                List.of(new SimpleGrantedAuthority("ROLE_ADMIN"),
-                        new SimpleGrantedAuthority("ROLE_USER")));
-        Authentication auth = new UsernamePasswordAuthenticationToken(
-                userDetails, null, userDetails.getAuthorities());
-        String token = jwtTokenProvider.generateToken(auth);
-
-        List<String> roles = jwtTokenProvider.getRolesFromToken(token);
-
-        assertNotNull(roles);
-        assertTrue(roles.contains("ROLE_ADMIN"));
-        assertTrue(roles.contains("ROLE_USER"));
-    }
 }

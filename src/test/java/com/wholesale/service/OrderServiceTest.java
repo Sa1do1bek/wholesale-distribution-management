@@ -40,6 +40,9 @@ class OrderServiceTest {
     @Mock
     private InventoryRepository inventoryRepository;
 
+    @Mock
+    private UserRepository userRepository;
+
     @InjectMocks
     private OrderService orderService;
 
@@ -60,24 +63,20 @@ class OrderServiceTest {
         product.setId(1L);
         product.setSku("PROD001");
         product.setName("Test Product");
-        product.setWholesalePrice(new BigDecimal("100.00"));
+        product.setPrice(new BigDecimal("100.00"));
         product.setActive(true);
 
         inventory = new Inventory();
         inventory.setId(1L);
         inventory.setProduct(product);
-        inventory.setQuantityOnHand(100);
-        inventory.setQuantityReserved(0);
+        inventory.setQuantity(100);
 
         order = new Order();
         order.setId(1L);
         order.setOrderNumber("ORD-001");
         order.setCustomer(customer);
         order.setStatus(Order.OrderStatus.PENDING);
-        order.setSubtotal(new BigDecimal("200.00"));
-        order.setTaxAmount(new BigDecimal("16.00"));
-        order.setShippingCost(new BigDecimal("10.00"));
-        order.setTotalAmount(new BigDecimal("226.00"));
+        order.setTotalAmount(new BigDecimal("200.00"));
         order.setCreatedAt(LocalDateTime.now());
 
         OrderItemDTO itemDTO = new OrderItemDTO();
@@ -88,28 +87,27 @@ class OrderServiceTest {
         createOrderRequest.setCustomerId(1L);
         createOrderRequest.setItems(List.of(itemDTO));
         createOrderRequest.setShippingAddress("123 Ship St");
-        createOrderRequest.setShippingCity("Ship City");
-        createOrderRequest.setShippingState("SS");
-        createOrderRequest.setShippingZipCode("12345");
-        createOrderRequest.setShippingCountry("USA");
     }
 
     @Test
     void createOrder_ValidData_ReturnsOrder() {
         when(customerRepository.findById(1L)).thenReturn(Optional.of(customer));
+        when(userRepository.findByUsername("admin")).thenReturn(Optional.of(new User()));
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
         when(inventoryRepository.findByProductId(1L)).thenReturn(Optional.of(inventory));
         when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> {
             Order savedOrder = invocation.getArgument(0);
-            savedOrder.setId(1L);
-            savedOrder.setOrderNumber("ORD-001");
+            if(savedOrder.getId() == null) {
+                savedOrder.setId(1L);
+                savedOrder.setOrderNumber("ORD-001");
+            }
             return savedOrder;
         });
 
-        var result = orderService.createOrder(createOrderRequest);
+        var result = orderService.createOrder(createOrderRequest, "admin");
 
         assertNotNull(result);
-        verify(orderRepository).save(any(Order.class));
+        verify(orderRepository, atLeastOnce()).save(any(Order.class));
         verify(inventoryRepository).save(any(Inventory.class));
     }
 
@@ -117,13 +115,12 @@ class OrderServiceTest {
     void createOrder_CustomerNotFound_ThrowsException() {
         when(customerRepository.findById(1L)).thenReturn(Optional.empty());
 
-        assertThrows(ResourceNotFoundException.class, () -> orderService.createOrder(createOrderRequest));
+        assertThrows(ResourceNotFoundException.class, () -> orderService.createOrder(createOrderRequest, "admin"));
     }
 
     @Test
     void createOrder_InsufficientStock_ThrowsException() {
-        inventory.setQuantityOnHand(1);
-        inventory.setQuantityReserved(0);
+        inventory.setQuantity(1);
 
         OrderItemDTO itemDTO = new OrderItemDTO();
         itemDTO.setProductId(1L);
@@ -134,7 +131,7 @@ class OrderServiceTest {
         when(productRepository.findById(1L)).thenReturn(Optional.of(product));
         when(inventoryRepository.findByProductId(1L)).thenReturn(Optional.of(inventory));
 
-        assertThrows(BadRequestException.class, () -> orderService.createOrder(createOrderRequest));
+        assertThrows(BadRequestException.class, () -> orderService.createOrder(createOrderRequest, "admin"));
     }
 
     @Test
@@ -159,14 +156,14 @@ class OrderServiceTest {
         when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
         when(orderRepository.save(any(Order.class))).thenReturn(order);
 
-        var result = orderService.updateOrderStatus(1L, Order.OrderStatus.CONFIRMED);
+        var result = orderService.updateOrderStatus(1L, Order.OrderStatus.PROCESSING);
 
         assertNotNull(result);
         verify(orderRepository).save(any(Order.class));
     }
 
     @Test
-    void cancelOrder_PendingOrder_CancelsSuccessfully() {
+    void updateOrderStatus_CancelOrder_RestoresInventory() {
         OrderItem orderItem = new OrderItem();
         orderItem.setProduct(product);
         orderItem.setQuantity(2);
@@ -176,15 +173,17 @@ class OrderServiceTest {
         when(inventoryRepository.findByProductId(1L)).thenReturn(Optional.of(inventory));
         when(orderRepository.save(any(Order.class))).thenReturn(order);
 
-        assertDoesNotThrow(() -> orderService.cancelOrder(1L));
+        assertDoesNotThrow(() -> orderService.updateOrderStatus(1L, Order.OrderStatus.CANCELLED));
         verify(orderRepository).save(any(Order.class));
+        verify(inventoryRepository).save(any(Inventory.class));
+        assertEquals(102, inventory.getQuantity()); // Restored 2 items
     }
 
     @Test
-    void cancelOrder_ShippedOrder_ThrowsException() {
+    void updateOrderStatus_ShippedOrderToCancelled_ThrowsException() {
         order.setStatus(Order.OrderStatus.SHIPPED);
         when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
 
-        assertThrows(BadRequestException.class, () -> orderService.cancelOrder(1L));
+        assertThrows(BadRequestException.class, () -> orderService.updateOrderStatus(1L, Order.OrderStatus.CANCELLED));
     }
 }

@@ -15,7 +15,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -41,32 +40,24 @@ class CustomerServiceTest {
         customer = new Customer();
         customer.setId(1L);
         customer.setCompanyName("Test Company");
-        customer.setContactName("John Doe");
+        customer.setFullName("John Doe");
         customer.setEmail("john@test.com");
         customer.setPhone("123-456-7890");
         customer.setAddress("123 Test St");
         customer.setCity("Test City");
-        customer.setState("TS");
-        customer.setZipCode("12345");
         customer.setCountry("USA");
-        customer.setCreditLimit(new BigDecimal("10000.00"));
-        customer.setPaymentTerms("NET30");
         customer.setActive(true);
         customer.setCreatedAt(LocalDateTime.now());
         customer.setUpdatedAt(LocalDateTime.now());
 
         customerDTO = new CustomerDTO();
         customerDTO.setCompanyName("Test Company");
-        customerDTO.setContactName("John Doe");
+        customerDTO.setFullName("John Doe");
         customerDTO.setEmail("john@test.com");
         customerDTO.setPhone("123-456-7890");
         customerDTO.setAddress("123 Test St");
         customerDTO.setCity("Test City");
-        customerDTO.setState("TS");
-        customerDTO.setZipCode("12345");
         customerDTO.setCountry("USA");
-        customerDTO.setCreditLimit(new BigDecimal("10000.00"));
-        customerDTO.setPaymentTerms("NET30");
     }
 
     @Test
@@ -74,7 +65,7 @@ class CustomerServiceTest {
         Page<Customer> page = new PageImpl<>(List.of(customer));
         when(customerRepository.findAll(any(PageRequest.class))).thenReturn(page);
 
-        var result = customerService.getAllCustomers(0, 10);
+        var result = customerService.getAllCustomers(0, 10, "id", "asc");
 
         assertNotNull(result);
         assertEquals(1, result.getContent().size());
@@ -132,20 +123,22 @@ class CustomerServiceTest {
     @Test
     void deleteCustomer_ExistingId_DeletesCustomer() {
         when(customerRepository.findById(1L)).thenReturn(Optional.of(customer));
-        doNothing().when(customerRepository).delete(any(Customer.class));
+        when(customerRepository.save(any(Customer.class))).thenReturn(customer);
 
         assertDoesNotThrow(() -> customerService.deleteCustomer(1L));
-        verify(customerRepository).delete(customer);
+        verify(customerRepository).save(customer);
+        assertFalse(customer.isActive());
     }
 
     @Test
     void searchCustomers_ReturnsMatchingCustomers() {
-        when(customerRepository.searchByCompanyNameOrContactName(anyString()))
-                .thenReturn(List.of(customer));
+        Page<Customer> page = new PageImpl<>(List.of(customer));
+        when(customerRepository.searchCustomers(anyString(), any(PageRequest.class)))
+                .thenReturn(page);
 
-        var result = customerService.searchCustomers("Test");
+        var result = customerService.searchCustomers("Test", 0, 10);
 
         assertNotNull(result);
-        assertEquals(1, result.size());
+        assertEquals(1, result.getContent().size());
     }
 }
