@@ -62,5 +62,6 @@ public class DashboardService {
             .outOfStockItems(outOfStockItems)
             .ordersByStatus(ordersByStatus)
             .build();
+
     }
 }
