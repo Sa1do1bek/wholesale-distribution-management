@@ -3,10 +3,14 @@ spring:
     name: wholesale-distribution-management
 
   datasource:
-    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/wholesale_db}
-    username: ${DATABASE_USERNAME:postgres}
-    password: ${DATABASE_PASSWORD:postgres}
+    url: jdbc:postgresql://dpg-d8bsub4m0tmc73er2sgg-a.oregon-postgres.render.com:5432/wdm_ytpk
+    username: user
+    password: M1ZyrQuA5dxBosvtk3P44dTLc6wkJI6W
     driver-class-name: org.postgresql.Driver
+
+    hikari:
+      connection-timeout: 10000 # 10 seconds maximum wait time
+      initialization-fail-timeout: 1 # Fail immediately on startup if DB is down
   
   jpa:
     hibernate:
