@@ -213,33 +213,6 @@ h1, h2, h3, h4, h5, h6 {
     text-shadow: 0 0 8px var(--accent-primary);
 }
 
-.demo-credentials {
-    margin-top: 25px;
-    padding: 16px;
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.04);
-    border-radius: 12px;
-    font-size: 13px;
-}
-
-.demo-credentials h4 {
-    margin-bottom: 10px;
-    color: var(--text-bright);
-    font-weight: 600;
-    font-size: 13px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.demo-credentials p {
-    margin: 6px 0;
-    color: var(--text-muted);
-}
-
-.demo-credentials strong {
-    color: var(--accent-warning);
-}
-
 .error-message {
     background: rgba(239, 68, 68, 0.1);
     border: 1px solid rgba(239, 68, 68, 0.2);
